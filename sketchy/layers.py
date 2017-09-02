@@ -90,6 +90,9 @@ class LSHEmbedding(nn.Module):
         if not indices.is_contiguous():
             indices = indices.contiguous()
 
+        if indices.is_cuda and not self._embeddings.is_cuda:
+            self._embeddings = self._embeddings.cuda()
+
         indices = indices.view(-1)
 
         x = torch.index_select(self._embeddings,

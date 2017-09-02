@@ -2,6 +2,8 @@ import os
 
 import pickle
 
+import shutil
+
 import hyperopt
 from hyperopt import Trials, fmin
 
@@ -22,7 +24,9 @@ def optimize(objective, space, trials_fname=None, max_evals=5):
          max_evals=max_evals)
 
     if trials_fname is not None:
-        with open(trials_fname, 'wb') as trials_file:
+        temporary = '{}.temp'.format(trials_fname)
+        with open(temporary, 'wb') as trials_file:
             pickle.dump(trials, trials_file)
+        shutil.move(temporary, trials_fname)
 
     return trials

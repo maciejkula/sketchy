@@ -6,9 +6,9 @@ import numpy as np
 
 import torch
 
-from spotlight.evaluation import mrr_score
-from spotlight.factorization.implicit import ImplicitFactorizationModel
-from spotlight.factorization.representations import BilinearNet
+from spotlight.evaluation import sequence_mrr_score
+from spotlight.sequence.implicit import ImplicitSequenceModel
+from spotlight.sequence.representations import LSTMNet
 from spotlight.layers import ScaledEmbedding
 
 from sketchy.layers import LSHEmbedding
@@ -20,7 +20,7 @@ CUDA = torch.cuda.is_available()
 def hyperparameter_space():
 
     space = {
-        'batch_size': hp.quniform('batch_size', 128, 1024, 100),
+        'batch_size': hp.quniform('batch_size', 16, 256, 10),
         'learning_rate': hp.loguniform('learning_rate', -6, -1),
         'l2': hp.loguniform('l2', -10, -1),
         'embedding_dim': hp.quniform('embedding_dim', 16, 256, 10),
@@ -43,7 +43,7 @@ def hyperparameter_space():
     return space
 
 
-def get_objective(train, validation, test):
+def get_objective(train_nonsequence, train, validation, test):
 
     random_state = np.random.RandomState(42)
 
@@ -64,44 +64,34 @@ def get_objective(train, validation, test):
                                            nonlinearity=nonlinearity,
                                            num_layers=num_layers,
                                            num_hash_functions=num_hashes)
-            item_embeddings.fit(train.tocsr().T)
-            user_embeddings = LSHEmbedding(int(hyper['embedding_dim']),
-                                           residual_connections=residual,
-                                           nonlinearity=nonlinearity,
-                                           num_layers=num_layers,
-                                           num_hash_functions=num_hashes)
-            user_embeddings.fit(train.tocsr())
+            item_embeddings.fit(train_nonsequence.tocsr().T)
         else:
-            user_embeddings = ScaledEmbedding(train.num_users,
-                                              int(hyper['embedding_dim']),
-                                              padding_idx=0)
             item_embeddings = ScaledEmbedding(train.num_items,
                                               int(hyper['embedding_dim']),
                                               padding_idx=0)
 
-        network = BilinearNet(train.num_users,
-                              train.num_items,
-                              user_embedding_layer=user_embeddings,
-                              item_embedding_layer=item_embeddings)
+        network = LSTMNet(train.num_items,
+                          int(hyper['embedding_dim']),
+                          item_embedding_layer=item_embeddings)
 
-        model = ImplicitFactorizationModel(loss=hyper['loss'],
-                                           n_iter=int(hyper['n_iter']),
-                                           batch_size=int(hyper['batch_size']),
-                                           learning_rate=hyper['learning_rate'],
-                                           embedding_dim=int(hyper['embedding_dim']),
-                                           l2=hyper['l2'],
-                                           representation=network,
-                                           use_cuda=CUDA,
-                                           random_state=random_state)
+        model = ImplicitSequenceModel(loss=hyper['loss'],
+                                      n_iter=int(hyper['n_iter']),
+                                      batch_size=int(hyper['batch_size']),
+                                      learning_rate=hyper['learning_rate'],
+                                      embedding_dim=int(hyper['embedding_dim']),
+                                      l2=hyper['l2'],
+                                      representation=network,
+                                      use_cuda=CUDA,
+                                      random_state=random_state)
 
         model.fit(train, verbose=True)
 
         elapsed = time.clock() - start
-        
+
         print(model)
 
-        validation_mrr = mrr_score(model, validation, train=train).mean()
-        test_mrr = mrr_score(model, test, train=train.tocsr() + validation.tocsr()).mean()
+        validation_mrr = sequence_mrr_score(model, validation).mean()
+        test_mrr = sequence_mrr_score(model, test).mean()
 
         print('MRR {} {}'.format(validation_mrr, test_mrr))
 

@@ -56,3 +56,12 @@ if __name__ == '__main__':
                           space,
                           trials_fname=fname,
                           max_evals=iteration + 1)
+
+        print('Best trial: {}'.format(trials.best_trial))
+
+        best_lsh_trial = sorted([x for x in trials.trials
+                                 if x['misc']['vals']['lsh'][0] == 0],
+                                key=lambda x: x['result']['loss'])
+
+        if best_lsh_trial:
+            print('Best LSH trial: {}'.format(best_lsh_trial[0]))
