@@ -35,10 +35,10 @@ def hyperparameter_space():
                 'nonlinearity': hp.choice('nonlinearity', ['tanh', 'relu'])
             },
             {
-                'type': 'normal'
+                'type': 'embedding'
             }
         ])
-    }               
+    }
 
     return space
 
