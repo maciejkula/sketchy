@@ -20,15 +20,17 @@ CUDA = torch.cuda.is_available()
 def hyperparameter_space():
 
     space = {
-        'batch_size': hp.quniform('batch_size', 128, 1024, 100),
-        'learning_rate': hp.loguniform('learning_rate', -6, -1),
-        'l2': hp.loguniform('l2', -10, -1),
-        'embedding_dim': hp.quniform('embedding_dim', 16, 256, 10),
+        'batch_size': hp.quniform('batch_size', 512, 1024, 100),
+        'learning_rate': hp.loguniform('learning_rate', -5, -2),
+        'l2': hp.loguniform('l2', -10, -4),
+        'embedding_dim': hp.quniform('embedding_dim', 16, 128, 10),
         'n_iter': hp.quniform('n_iter', 5, 25, 1),
-        'loss': hp.choice('loss', ['bpr', 'adaptive_hinge', 'pointwise']),
+        'loss': hp.choice('loss', ['adaptive_hinge']),
         'model': hp.choice('lsh', [
             {
                 'type': 'lsh',
+                'embed': hp.choice('embed', [True, False]),
+                'gated': hp.choice('gated', [True, False]),
                 'num_hash_functions': hp.quniform('num_hash_functions', 1, 4, 1),
                 'residual': hp.choice('residual', [True, False]),
                 'num_layers': hp.quniform('num_layers', 1, 3, 1),
@@ -58,14 +60,22 @@ def get_objective(train, validation, test):
             num_layers = int(hyper['model']['num_layers'])
             nonlinearity = hyper['model']['nonlinearity']
             residual = hyper['model']['residual']
+            embed = hyper['model']['embed']
+            gated = hyper['model']['gated']
 
-            item_embeddings = LSHEmbedding(int(hyper['embedding_dim']),
+            item_embeddings = LSHEmbedding(train.num_items,
+                                           int(hyper['embedding_dim']),
+                                           embed=embed,
+                                           gated=gated,
                                            residual_connections=residual,
                                            nonlinearity=nonlinearity,
                                            num_layers=num_layers,
                                            num_hash_functions=num_hashes)
             item_embeddings.fit(train.tocsr().T)
-            user_embeddings = LSHEmbedding(int(hyper['embedding_dim']),
+            user_embeddings = LSHEmbedding(train.num_users,
+                                           int(hyper['embedding_dim']),
+                                           embed=embed,
+                                           gated=gated,
                                            residual_connections=residual,
                                            nonlinearity=nonlinearity,
                                            num_layers=num_layers,
@@ -97,7 +107,7 @@ def get_objective(train, validation, test):
         model.fit(train, verbose=True)
 
         elapsed = time.clock() - start
-        
+
         print(model)
 
         validation_mrr = mrr_score(model, validation, train=train).mean()
@@ -109,6 +119,7 @@ def get_objective(train, validation, test):
                 'status': STATUS_OK,
                 'validation_mrr': validation_mrr,
                 'test_mrr': test_mrr,
-                'elapsed': elapsed}
+                'elapsed': elapsed,
+                'hyper': hyper}
 
     return objective

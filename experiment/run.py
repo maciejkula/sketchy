@@ -34,12 +34,26 @@ def load_data(random_state):
 
 def build_factorization_model(train, random_state):
 
-    embedding_dim = 64
+    embedding_dim = 32
+    residual = True
+    num_layers = 2
+    embed = True
+    gated = True
 
-    item_embeddings = LSHEmbedding(embedding_dim,
+    item_embeddings = LSHEmbedding(train.num_items,
+                                   embedding_dim,
+                                   embed=embed,
+                                   gated=gated,
+                                   num_layers=num_layers,
+                                   residual_connections=residual,
                                    num_hash_functions=1)
     item_embeddings.fit(train.tocsr().T)
-    user_embeddings = LSHEmbedding(embedding_dim,
+    user_embeddings = LSHEmbedding(train.num_users,
+                                   embedding_dim,
+                                   embed=embed,
+                                   gated=gated,
+                                   num_layers=num_layers,
+                                   residual_connections=residual,
                                    num_hash_functions=1)
     user_embeddings.fit(train.tocsr())
 
@@ -56,7 +70,7 @@ def build_factorization_model(train, random_state):
                                        l2=1e-6,
                                        representation=network,
                                        use_cuda=CUDA,
-                                       random_state=random_state)
+                                       random_state=np.random.RandomState(42))
 
     return model
 
@@ -67,21 +81,22 @@ if __name__ == '__main__':
 
     train, validation, test = load_data(random_state)
 
-    objective = get_objective(train, validation, test)
-    space = hyperparameter_space()
+    # objective = get_objective(train, validation, test)
+    # space = hyperparameter_space()
 
-    max_evals = 5
+    # max_evals = 5
 
-    for iteration in range(1, max_evals):
-        print('Iteration {}'.format(iteration))
-        trials = optimize(objective,
-                          space,
-                          trials_fname='factorization_trials.pickle',
-                          max_evals=iteration)
+    # for iteration in range(1, max_evals):
+    #     print('Iteration {}'.format(iteration))
+    #     trials = optimize(objective,
+    #                       space,
+    #                       trials_fname='factorization_trials.pickle',
+    #                       max_evals=iteration)
 
-    # model = build_factorization_model(train, random_state)
-    # model.fit(train, verbose=True)
+    model = build_factorization_model(train, random_state)
+    model.fit(train, verbose=True)
+    print(model)
 
-    # mrr = mrr_score(model, test, train=train).mean()
+    mrr = mrr_score(model, test, train=train).mean()
 
-    # print('MRR {}'.format(mrr))
+    print('MRR {}'.format(mrr))

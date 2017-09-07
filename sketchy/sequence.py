@@ -29,6 +29,7 @@ def hyperparameter_space():
         'model': hp.choice('lsh', [
             {
                 'type': 'lsh',
+                'embed': hp.choice('embed', [True, False]),
                 'num_hash_functions': hp.quniform('num_hash_functions', 1, 4, 1),
                 'residual': hp.choice('residual', [True, False]),
                 'num_layers': hp.quniform('num_layers', 1, 3, 1),
@@ -58,8 +59,11 @@ def get_objective(train_nonsequence, train, validation, test):
             num_layers = int(hyper['model']['num_layers'])
             nonlinearity = hyper['model']['nonlinearity']
             residual = hyper['model']['residual']
+            embed = hyper['model']['embed']
 
-            item_embeddings = LSHEmbedding(int(hyper['embedding_dim']),
+            item_embeddings = LSHEmbedding(train.num_items,
+                                           int(hyper['embedding_dim']),
+                                           embed=embed,
                                            residual_connections=residual,
                                            nonlinearity=nonlinearity,
                                            num_layers=num_layers,
@@ -99,6 +103,7 @@ def get_objective(train_nonsequence, train, validation, test):
                 'status': STATUS_OK,
                 'validation_mrr': validation_mrr,
                 'test_mrr': test_mrr,
-                'elapsed': elapsed}
+                'elapsed': elapsed,
+                'hyper': hyper}
 
     return objective

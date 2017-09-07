@@ -20,7 +20,7 @@ def load_data(dataset, random_state):
 
     max_sequence_length = int(np.percentile(dataset.tocsr()
                                             .getnnz(axis=1),
-                                            95))
+                                            80))
     min_sequence_length = 20
     step_size = max_sequence_length
 
